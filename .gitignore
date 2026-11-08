@@ -1,0 +1,14 @@
+target/
+.idea/
+*.iml
+.vscode/
+.env
+*.log
+.DS_Store
+
+# Environment files
+.env.*
+!.env.example
+
+# Local-only development profile (contains demo credentials)
+src/main/resources/application-dev.yml

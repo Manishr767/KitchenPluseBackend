@@ -1,0 +1,8 @@
+kitchenpulse:
+  jwt:
+    secret: test-secret-test-secret-test-secret-1234567890
+    access-token-ttl: 1h
+  bootstrap-admin:
+    email: admin@test.local
+    password: Admin-Pass-123
+    name: Test Admin

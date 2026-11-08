@@ -1,0 +1,43 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: kitchenpulse
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/kitchenpulse}
+    username: ${DB_USERNAME:kitchenpulse}
+    password: ${DB_PASSWORD:kp-local-dev-2026}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate   # Flyway owns the schema; Hibernate only checks it matches.
+  flyway:
+    enabled: true
+  data:
+    web:
+      pageable:
+        max-page-size: 100
+
+kitchenpulse:
+  jwt:
+    secret: ${JWT_SECRET}          # required, >= 32 chars, no default on purpose
+    access-token-ttl: 8h
+  bootstrap-admin:
+    email: ${BOOTSTRAP_ADMIN_EMAIL:}
+    password: ${BOOTSTRAP_ADMIN_PASSWORD:}
+    name: System Admin
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+app:
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173}

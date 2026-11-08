@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kitchenpulse-db
+    environment:
+      POSTGRES_DB: kitchenpulse
+      POSTGRES_USER: kitchenpulse
+      POSTGRES_PASSWORD: kitchenpulse
+    ports:
+      - "5432:5432"
+    volumes:
+      - kitchenpulse-data:/var/lib/postgresql/data
+volumes:
+  kitchenpulse-data:
