@@ -59,6 +59,22 @@ If you don't have Maven installed: `mvn -N wrapper:wrapper` once, then use `./mv
 Errors are RFC 7807 problem JSON: 400 validation (with an `errors` map), 401 not logged in / bad credentials,
 403 no permission, 404 not found, 409 duplicate, 422 business rule.
 
+| Inventory | `GET /api/inventory?branchId={id}` | ADMIN, BRANCH_STAFF (own branch), CENTRAL_OFFICE_STAFF, WAREHOUSE_MANAGER |
+| Stock counts | `POST /api/stock-counts` | BRANCH_STAFF (own branch) |
+
+Stock count request example:
+```json
+{
+  "branchId": 1,
+  "items": [
+    { "ingredientId": 1, "quantity": 12.5 },
+    { "ingredientId": 2, "quantity": 4 }
+  ]
+}
+```
+
+Inventory is derived from the latest submitted stock count for each ingredient at the selected branch. It is not a live balance of withdrawals. Quantities use each ingredient's fixed stock unit. V3 adds the `stock_count` and `stock_count_item` tables.
+
 ## Architecture rules
 
 ```
