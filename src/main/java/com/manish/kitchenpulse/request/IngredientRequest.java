@@ -32,6 +32,15 @@ public class IngredientRequest {
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
 
+    @Column(name = "reviewed_by_user_id")
+    private Long reviewedByUserId;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
+    @Column(name = "review_note", length = 1000)
+    private String reviewNote;
+
     protected IngredientRequest() {}
 
     IngredientRequest(Long branchId, Long createdByUserId, LocalDateTime createdAt) {
@@ -47,6 +56,19 @@ public class IngredientRequest {
     public String getStatus() { return status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getSubmittedAt() { return submittedAt; }
+    public Long getReviewedByUserId() { return reviewedByUserId; }
+    public LocalDateTime getReviewedAt() { return reviewedAt; }
+    public String getReviewNote() { return reviewNote; }
+
+    void review(String resultStatus, Long reviewerId, LocalDateTime at, String note) {
+        if (!"SUBMITTED".equals(status)) {
+            throw new IllegalStateException("Only submitted requests can be reviewed");
+        }
+        status = resultStatus;
+        reviewedByUserId = reviewerId;
+        reviewedAt = at;
+        reviewNote = note;
+    }
 
     void submit(LocalDateTime at) {
         if (!"DRAFT".equals(status)) {

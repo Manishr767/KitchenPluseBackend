@@ -10,5 +10,8 @@ public record IngredientRequestResponse(
         String status,
         LocalDateTime createdAt,
         LocalDateTime submittedAt,
+        Long reviewedByUserId,
+        LocalDateTime reviewedAt,
+        String reviewNote,
         List<IngredientRequestItemResponse> items) {
 }

@@ -26,6 +26,9 @@ public class IngredientRequestItem {
     @Column(name = "requested_quantity", nullable = false, precision = 15, scale = 3)
     private BigDecimal requestedQuantity;
 
+    @Column(name = "approved_quantity", precision = 15, scale = 3)
+    private BigDecimal approvedQuantity;
+
     protected IngredientRequestItem() {}
 
     IngredientRequestItem(Long requestId, Long ingredientId, BigDecimal quantity) {
@@ -38,4 +41,7 @@ public class IngredientRequestItem {
     public Long getIngredientRequestId() { return ingredientRequestId; }
     public Long getIngredientId() { return ingredientId; }
     public BigDecimal getRequestedQuantity() { return requestedQuantity; }
+    public BigDecimal getApprovedQuantity() { return approvedQuantity; }
+
+    void approve(BigDecimal quantity) { this.approvedQuantity = quantity; }
 }

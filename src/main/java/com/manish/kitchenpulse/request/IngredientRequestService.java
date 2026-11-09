@@ -1,9 +1,13 @@
 package com.manish.kitchenpulse.request;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.Set;
 
 import com.manish.kitchenpulse.branch.BranchService;
@@ -82,6 +86,53 @@ public class IngredientRequestService {
         return response(request);
     }
 
+    @Transactional
+    public IngredientRequestResponse review(Long id, ReviewIngredientRequest body, AuthenticatedUser user) {
+        if (user.role() != Role.CENTRAL_OFFICE_STAFF && user.role() != Role.ADMIN) {
+            throw new AccessDeniedException("Only Central Office staff can review ingredient requests");
+        }
+        IngredientRequest request = requests.findById(id)
+                .orElseThrow(() -> new NotFoundException("Ingredient request " + id + " not found"));
+        if (!"SUBMITTED".equals(request.getStatus())) {
+            throw new BusinessRuleException("Only submitted requests can be reviewed");
+        }
+
+        List<IngredientRequestItem> requestItems = items.findAllByIngredientRequestIdOrderByIdAsc(id);
+        Map<Long, IngredientRequestItem> byIngredient = requestItems.stream()
+                .collect(Collectors.toMap(IngredientRequestItem::getIngredientId, Function.identity()));
+        Map<Long, BigDecimal> approved = new java.util.HashMap<>();
+        for (ReviewIngredientRequest.ReviewItem line : body.items()) {
+            if (approved.putIfAbsent(line.ingredientId(), line.approvedQuantity()) != null) {
+                throw new BusinessRuleException("An ingredient can only appear once in a review");
+            }
+            IngredientRequestItem requestItem = byIngredient.get(line.ingredientId());
+            if (requestItem == null) {
+                throw new BusinessRuleException("Ingredient " + line.ingredientId() + " is not in this request");
+            }
+            BigDecimal quantity = line.approvedQuantity();
+            if (quantity.signum() < 0 || quantity.scale() > 3
+                    || quantity.compareTo(requestItem.getRequestedQuantity()) > 0) {
+                throw new BusinessRuleException("Approved quantity must be between zero and requested quantity (maximum 3 decimal places)");
+            }
+        }
+        if (approved.size() != requestItems.size()) {
+            throw new BusinessRuleException("Review must include every requested ingredient");
+        }
+
+        boolean allFull = true;
+        boolean anyApproved = false;
+        for (IngredientRequestItem item : requestItems) {
+            BigDecimal quantity = approved.get(item.getIngredientId());
+            item.approve(quantity);
+            anyApproved |= quantity.signum() > 0;
+            allFull &= quantity.compareTo(item.getRequestedQuantity()) == 0;
+        }
+        String result = !anyApproved ? "REJECTED" : allFull ? "APPROVED" : "PARTIALLY_APPROVED";
+        String note = body.reviewNote() == null || body.reviewNote().isBlank() ? null : body.reviewNote().trim();
+        request.review(result, user.id(), LocalDateTime.now(ZoneOffset.UTC), note);
+        return response(request, requestItems);
+    }
+
     private IngredientRequest findVisible(Long id, AuthenticatedUser user) {
         if (user.role() == Role.BRANCH_STAFF) {
             return requests.findByIdAndBranchId(id, user.branchId())
@@ -101,7 +152,8 @@ public class IngredientRequestService {
 
     private IngredientRequestResponse response(IngredientRequest request, List<IngredientRequestItem> lines) {
         return new IngredientRequestResponse(request.getId(), request.getBranchId(), request.getCreatedByUserId(),
-                request.getStatus(), request.getCreatedAt(), request.getSubmittedAt(),
+                request.getStatus(), request.getCreatedAt(), request.getSubmittedAt(), request.getReviewedByUserId(),
+                request.getReviewedAt(), request.getReviewNote(),
                 lines.stream().map(IngredientRequestItemResponse::from).toList());
     }
 }

@@ -45,6 +45,14 @@ public class IngredientRequestController {
         return service.get(id, user);
     }
 
+    @PostMapping("/{id}/review")
+    @PreAuthorize("hasAnyRole('ADMIN','CENTRAL_OFFICE_STAFF')")
+    public IngredientRequestResponse review(@PathVariable Long id,
+                                            @Valid @RequestBody ReviewIngredientRequest body,
+                                            @AuthenticationPrincipal AuthenticatedUser user) {
+        return service.review(id, body, user);
+    }
+
     @PostMapping("/{id}/submit")
     @PreAuthorize("hasRole('BRANCH_STAFF')")
     public IngredientRequestResponse submit(@PathVariable Long id, @AuthenticationPrincipal AuthenticatedUser user) {

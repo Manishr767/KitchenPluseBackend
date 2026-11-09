@@ -104,4 +104,78 @@ class IngredientRequestApiTest extends AbstractIntegrationTest {
                 Map.of("items", List.of(Map.of("ingredientId", ingredientId, "quantity", 0))))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void centralOfficeCanApproveAllItemsAndPartiallyApproveOrRejectRequests() throws Exception {
+        long branchId = createBranch();
+        long ingredientA = createIngredient(unique("Rice"));
+        long ingredientB = createIngredient(unique("Oil"));
+        String branch = createBranchStaff(branchId).token();
+        String office = createStaff("CENTRAL_OFFICE_STAFF").token();
+        String warehouse = createStaff("WAREHOUSE_MANAGER").token();
+
+        long approvedId = submitRequest(branch, ingredientA, 10);
+        postJson("/api/ingredient-requests/" + approvedId + "/review", office,
+                Map.of("items", List.of(Map.of("ingredientId", ingredientA, "approvedQuantity", 10))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APPROVED"))
+                .andExpect(jsonPath("$.items[0].approvedQuantity").value(10))
+                .andExpect(jsonPath("$.reviewedByUserId").isNotEmpty());
+
+        long partialId = idOf(postJson("/api/ingredient-requests", branch,
+                Map.of("items", List.of(Map.of("ingredientId", ingredientA, "quantity", 10),
+                        Map.of("ingredientId", ingredientB, "quantity", 5))))
+                .andExpect(status().isCreated()));
+        postJson("/api/ingredient-requests/" + partialId + "/submit", branch, null).andExpect(status().isOk());
+        postJson("/api/ingredient-requests/" + partialId + "/review", office,
+                Map.of("items", List.of(Map.of("ingredientId", ingredientA, "approvedQuantity", 10),
+                        Map.of("ingredientId", ingredientB, "approvedQuantity", 0))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PARTIALLY_APPROVED"));
+
+        long rejectedId = submitRequest(branch, ingredientA, 3);
+        postJson("/api/ingredient-requests/" + rejectedId + "/review", office,
+                Map.of("items", List.of(Map.of("ingredientId", ingredientA, "approvedQuantity", 0))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REJECTED"));
+
+        getJson("/api/ingredient-requests", warehouse).andExpect(status().isOk());
+    }
+
+    @Test
+    void reviewRejectsUnauthorizedIncompleteAndExcessiveApprovals() throws Exception {
+        long branchId = createBranch();
+        long ingredientA = createIngredient(unique("Chicken"));
+        long ingredientB = createIngredient(unique("Tomato"));
+        String branch = createBranchStaff(branchId).token();
+        String office = createStaff("CENTRAL_OFFICE_STAFF").token();
+        String warehouse = createStaff("WAREHOUSE_MANAGER").token();
+        long id = idOf(postJson("/api/ingredient-requests", branch,
+                Map.of("items", List.of(Map.of("ingredientId", ingredientA, "quantity", 5),
+                        Map.of("ingredientId", ingredientB, "quantity", 2))))
+                .andExpect(status().isCreated()));
+        postJson("/api/ingredient-requests/" + id + "/submit", branch, null).andExpect(status().isOk());
+
+        postJson("/api/ingredient-requests/" + id + "/review", warehouse,
+                Map.of("items", List.of(Map.of("ingredientId", ingredientA, "approvedQuantity", 2),
+                        Map.of("ingredientId", ingredientB, "approvedQuantity", 1))))
+                .andExpect(status().isForbidden());
+        postJson("/api/ingredient-requests/" + id + "/review", office,
+                Map.of("items", List.of(Map.of("ingredientId", ingredientA, "approvedQuantity", 6),
+                        Map.of("ingredientId", ingredientB, "approvedQuantity", 1))))
+                .andExpect(status().isUnprocessableEntity());
+        postJson("/api/ingredient-requests/" + id + "/review", office,
+                Map.of("items", List.of(Map.of("ingredientId", ingredientA, "approvedQuantity", 2))))
+                .andExpect(status().isUnprocessableEntity());
+        getJson("/api/ingredient-requests/" + id, office)
+                .andExpect(jsonPath("$.status").value("SUBMITTED"));
+    }
+
+    private long submitRequest(String token, long ingredientId, double quantity) throws Exception {
+        long id = idOf(postJson("/api/ingredient-requests", token,
+                Map.of("items", List.of(Map.of("ingredientId", ingredientId, "quantity", quantity))))
+                .andExpect(status().isCreated()));
+        postJson("/api/ingredient-requests/" + id + "/submit", token, null).andExpect(status().isOk());
+        return id;
+    }
 }
